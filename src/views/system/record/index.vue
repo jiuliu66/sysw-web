@@ -25,14 +25,6 @@
           placeholder="请选择消息推送时间">
         </el-date-picker>
       </el-form-item>
-      <el-form-item label="推送方式" prop="pushWay">
-        <el-input
-          v-model="queryParams.pushWay"
-          placeholder="请输入推送方式"
-          clearable
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
       <el-form-item label="网格员" prop="gridman">
         <el-input
           v-model="queryParams.gridman"
@@ -104,7 +96,11 @@
           <span>{{ parseTime(scope.row.pushTime, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="推送方式" align="center" prop="pushWay" />
+      <el-table-column label="推送方式" align="center" prop="pushWay">
+        <template slot-scope="scope">
+          <dict-tag :options="dict.type.sys_push_type" :value="scope.row.pushWay ? scope.row.pushWay.split(',') : []"/>
+        </template>
+      </el-table-column>
       <el-table-column label="网格员" align="center" prop="gridman" />
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
@@ -158,7 +154,14 @@
           </el-date-picker>
         </el-form-item>
         <el-form-item label="推送方式" prop="pushWay">
-          <el-input v-model="form.pushWay" placeholder="请输入推送方式" />
+          <el-checkbox-group v-model="form.pushWay">
+            <el-checkbox
+              v-for="dict in dict.type.sys_push_type"
+              :key="dict.value"
+              :label="dict.value">
+              {{dict.label}}
+            </el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="网格员" prop="gridman">
           <el-input v-model="form.gridman" placeholder="请输入网格员" />
@@ -180,6 +183,7 @@ import { listRecord, getRecord, delRecord, addRecord, updateRecord } from "@/api
 
 export default {
   name: "Record",
+  dicts: ['sys_push_type'],
   data() {
     return {
       // 遮罩层
@@ -244,7 +248,7 @@ export default {
         recipientPhone: null,
         pushContent: null,
         pushTime: null,
-        pushWay: null,
+        pushWay: [],
         gridman: null,
         createBy: null,
         createTime: null,
@@ -282,6 +286,7 @@ export default {
       const id = row.id || this.ids
       getRecord(id).then(response => {
         this.form = response.data;
+        this.form.pushWay = this.form.pushWay.split(",");
         this.open = true;
         this.title = "修改消息推送流水";
       });
@@ -290,6 +295,7 @@ export default {
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          this.form.pushWay = this.form.pushWay.join(",");
           if (this.form.id != null) {
             updateRecord(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");
