@@ -139,6 +139,30 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+    <!-- 添加推送方式对话框 -->
+    <el-dialog :title="title" :visible.sync="open1" width="500px" append-to-body>
+      <el-form ref="elForm" :model="formData" :rules="rules" size="medium" label-width="100px">
+        <el-form-item label="用户号" prop="userId">
+          <el-input v-model="form.userId" placeholder="请输入用户号" />
+        </el-form-item>
+        <el-form-item label="欠费金额" prop="amountOwed">
+          <el-input v-model="form.amountOwed" placeholder="请输入欠费金额" />
+        </el-form-item>
+        <el-form-item label="催缴次数" prop="numberCall">
+          <el-input v-model="form.numberCall" placeholder="请输入催缴次数" />
+        </el-form-item>
+        <el-form-item label="方式" prop="field101">
+          <el-checkbox-group v-model="formData.field101" size="medium">
+            <el-checkbox v-for="(item, index) in field101Options" :key="index" :label="item.value"
+                         :disabled="item.disabled">{{item.label}}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitForm1">确 定</el-button>
+        <el-button @click="cancel">取 消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -174,6 +198,7 @@ export default {
       title: "",
       // 是否显示弹出层
       open: false,
+      open1: false,
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -182,11 +207,32 @@ export default {
         amountOwed: null,
         numberCall: null
       },
+      //推送查询参数
+      pushParams: {
+        userId: null,
+        pushType: null,
+      },
       // 表单参数
       form: {},
       // 表单校验
+      formData: {
+        field101: [],
+      },
       rules: {
-      }
+        field101: [{
+          required: true,
+          type: 'array',
+          message: '请至少选择一个field101',
+          trigger: 'change'
+        }],
+      },
+        field101Options: [{
+          "label": "短信推送",
+          "value": 1
+        }, {
+          "label": "微信公众号推送",
+          "value": 2
+        }],
     };
   },
   created() {
@@ -205,6 +251,7 @@ export default {
     // 取消按钮
     cancel() {
       this.open = false;
+      this.open1 = false;
       this.reset();
     },
     // 表单重置
@@ -279,16 +326,32 @@ export default {
         this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
     },
+
     /** 推送按钮操作 */
     handlePush(row) {
       this.reset();
-      const ids = row.id || this.ids
-      this.$modal.confirm('是否确认推送欠费用户编号为"' + ids + '"的数据项？').then(function() {
-        return pushArrearsInfo(ids);
-      }).then(() => {
-        this.getList();
-        this.$modal.msgSuccess("推送成功");
-      }).catch(() => {});
+      const id = row.id || this.ids
+      getArrearsUser(id).then(response => {
+          this.form = response.data;
+          this.open1 = true;
+          this.title = "选择推送方式";
+      });
+    },
+    /**推送提交按钮*/
+    submitForm1() {
+      this.$refs["elForm"].validate(valid => {
+        if (valid) {
+          console.log(this.formData.field101.toString())
+          this.pushParams.userId = this.form.userId
+          this.pushParams.pushType = this.formData.toString()
+          pushArrearsInfo(this.pushParams).then(response => {
+            this.$modal.msgSuccess("推送成功");
+            this.open1 = false;
+            this.getList();
+            console.log("测试")
+          });
+        }
+      });
     },
     /** 导出按钮操作 */
     handleExport() {

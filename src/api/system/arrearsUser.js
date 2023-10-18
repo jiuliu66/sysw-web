@@ -43,9 +43,9 @@ export function delArrearsUser(id) {
   })
 }
 //推送欠费信息
-export function pushArrearsInfo(id) {
+export function pushArrearsInfo(pushParams) {
   return request({
-    url: '/system/arrearsUser/' + id,
+    url: '/system/arrearsUser/' + pushParams,
     method: 'post'
   })
 }
