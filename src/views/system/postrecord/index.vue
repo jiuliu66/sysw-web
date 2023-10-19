@@ -1,26 +1,42 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="用户号" prop="userId">
+      <el-form-item label="用户id" prop="userId">
         <el-input
           v-model="queryParams.userId"
-          placeholder="请输入用户号"
+          placeholder="请输入用户id"
           clearable
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="欠费金额" prop="amountOwed">
+      <el-form-item label="消息接收人" prop="userName">
         <el-input
-          v-model="queryParams.amountOwed"
-          placeholder="请输入欠费金额"
+          v-model="queryParams.userName"
+          placeholder="请输入消息接收人"
           clearable
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="催缴次数" prop="numberCall">
+      <el-form-item label="消息接收人的手机号码" prop="tel">
         <el-input
-          v-model="queryParams.numberCall"
-          placeholder="请输入催缴次数"
+          v-model="queryParams.tel"
+          placeholder="请输入消息接收人的手机号码"
+          clearable
+          @keyup.enter.native="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="消息推送时间" prop="pushTime">
+        <el-date-picker clearable
+          v-model="queryParams.pushTime"
+          type="date"
+          value-format="yyyy-MM-dd"
+          placeholder="请选择消息推送时间">
+        </el-date-picker>
+      </el-form-item>
+      <el-form-item label="网格员" prop="gridman">
+        <el-input
+          v-model="queryParams.gridman"
+          placeholder="请输入网格员"
           clearable
           @keyup.enter.native="handleQuery"
         />
@@ -39,7 +55,7 @@
           icon="el-icon-plus"
           size="mini"
           @click="handleAdd"
-          v-hasPermi="['system:arrearsUser:add']"
+          v-hasPermi="['system:postrecord:add']"
         >新增</el-button>
       </el-col>
       <el-col :span="1.5">
@@ -50,7 +66,7 @@
           size="mini"
           :disabled="single"
           @click="handleUpdate"
-          v-hasPermi="['system:arrearsUser:edit']"
+          v-hasPermi="['system:postrecord:edit']"
         >修改</el-button>
       </el-col>
       <el-col :span="1.5">
@@ -61,7 +77,7 @@
           size="mini"
           :disabled="multiple"
           @click="handleDelete"
-          v-hasPermi="['system:arrearsUser:remove']"
+          v-hasPermi="['system:postrecord:remove']"
         >删除</el-button>
       </el-col>
       <el-col :span="1.5">
@@ -71,29 +87,32 @@
           icon="el-icon-download"
           size="mini"
           @click="handleExport"
-          v-hasPermi="['system:arrearsUser:export']"
+          v-hasPermi="['system:postrecord:export']"
         >导出</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          type="warning"
-          plain
-          icon="el-icon-push"
-          size="mini"
-          :disabled="multiple"
-          @click="handlePush"
-          v-hasPermi="['system:arrearsUser:push']"
-        >推送</el-button>
       </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="arrearsUserList" @selection-change="handleSelectionChange">
+    <el-table v-loading="loading" :data="postrecordList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="主键" align="center" prop="id" />
-      <el-table-column label="用户号" align="center" prop="userId" />
-      <el-table-column label="欠费金额" align="center" prop="amountOwed" />
-      <el-table-column label="催缴次数" align="center" prop="numberCall" />
+      <el-table-column label="主键id" align="center" prop="id" />
+      <el-table-column label="用户id" align="center" prop="userId" />
+      <el-table-column label="消息接收人" align="center" prop="userName" />
+      <el-table-column label="消息接收人的微信openid" align="center" prop="wxid" />
+      <el-table-column label="消息接收人的手机号码" align="center" prop="tel" />
+      <el-table-column label="推送内容" align="center" prop="pushContent" />
+      <el-table-column label="消息推送时间" align="center" prop="pushTime" width="180">
+        <template slot-scope="scope">
+          <span>{{ parseTime(scope.row.pushTime, '{y}-{m}-{d}') }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="推送方式" align="center" prop="pushType">
+        <template slot-scope="scope">
+          <dict-tag :options="dict.type.push_type" :value="scope.row.pushType ? scope.row.pushType.split(',') : []"/>
+        </template>
+      </el-table-column>
+      <el-table-column label="网格员" align="center" prop="gridman" />
+      <el-table-column label="备注" align="center" prop="remark" />
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
           <el-button
@@ -101,26 +120,19 @@
             type="text"
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
-            v-hasPermi="['system:arrearsUser:edit']"
+            v-hasPermi="['system:postrecord:edit']"
           >修改</el-button>
           <el-button
             size="mini"
             type="text"
             icon="el-icon-delete"
             @click="handleDelete(scope.row)"
-            v-hasPermi="['system:arrearsUser:remove']"
+            v-hasPermi="['system:postrecord:remove']"
           >删除</el-button>
-          <el-button
-            size="mini"
-            type="text"
-            icon="el-icon-push"
-            @click="handlePush(scope.row)"
-            v-hasPermi="['system:arrearsUser:push']"
-          >推送</el-button>
         </template>
       </el-table-column>
     </el-table>
-
+    
     <pagination
       v-show="total>0"
       :total="total"
@@ -129,17 +141,44 @@
       @pagination="getList"
     />
 
-    <!-- 添加或修改欠费用户对话框 -->
+    <!-- 添加或修改消息推送流水对话框 -->
     <el-dialog :title="title" :visible.sync="open" width="500px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="用户号" prop="userId">
-          <el-input v-model="form.userId" placeholder="请输入用户号" />
+        <el-form-item label="用户id" prop="userId">
+          <el-input v-model="form.userId" placeholder="请输入用户id" />
         </el-form-item>
-        <el-form-item label="欠费金额" prop="amountOwed">
-          <el-input v-model="form.amountOwed" placeholder="请输入欠费金额" />
+        <el-form-item label="消息接收人" prop="userName">
+          <el-input v-model="form.userName" placeholder="请输入消息接收人" />
         </el-form-item>
-        <el-form-item label="催缴次数" prop="numberCall">
-          <el-input v-model="form.numberCall" placeholder="请输入催缴次数" />
+        <el-form-item label="消息接收人的手机号码" prop="tel">
+          <el-input v-model="form.tel" placeholder="请输入消息接收人的手机号码" />
+        </el-form-item>
+        <el-form-item label="推送内容">
+          <editor v-model="form.pushContent" :min-height="192"/>
+        </el-form-item>
+        <el-form-item label="消息推送时间" prop="pushTime">
+          <el-date-picker clearable
+            v-model="form.pushTime"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择消息推送时间">
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item label="推送方式" prop="pushType">
+          <el-checkbox-group v-model="form.pushType">
+            <el-checkbox
+              v-for="dict in dict.type.push_type"
+              :key="dict.value"
+              :label="dict.value">
+              {{dict.label}}
+            </el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="网格员" prop="gridman">
+          <el-input v-model="form.gridman" placeholder="请输入网格员" />
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -147,49 +186,21 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
-
-    <!-- 推送方式对话框 -->
-    <el-dialog :title="push.title"  :visible.sync="push.open" width="500px" append-to-body>
-      <el-form ref="pushForm" :model="push.form" :rules="push.rules" size="medium" label-width="100px">
-        <el-form-item label="推送方式" prop="pushWay">
-          <el-checkbox-group v-model="push.form.pushWay">
-            <el-checkbox
-              v-for="dict in dict.type.sys_push_type"
-              :key="dict.value"
-              :label="dict.value">
-              {{dict.label}}
-            </el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="pushSubmitForm">确 定</el-button>
-        <el-button @click="cancel">取 消</el-button>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import {
-  listArrearsUser,
-  getArrearsUser,
-  delArrearsUser,
-  addArrearsUser,
-  updateArrearsUser,
-  pushArrearsInfo
-} from "@/api/system/arrearsUser";
+import { listPostrecord, getPostrecord, delPostrecord, addPostrecord, updatePostrecord } from "@/api/system/postrecord";
 
 export default {
-  name: "ArrearsUser",
-  dicts: ['sys_push_type'],
+  name: "Postrecord",
+  dicts: ['push_type'],
   data() {
     return {
       // 遮罩层
       loading: true,
       // 选中数组
       ids: [],
-      userIds: [],
       // 非单个禁用
       single: true,
       // 非多个禁用
@@ -198,8 +209,8 @@ export default {
       showSearch: true,
       // 总条数
       total: 0,
-      // 欠费用户表格数据
-      arrearsUserList: [],
+      // 消息推送流水表格数据
+      postrecordList: [],
       // 弹出层标题
       title: "",
       // 是否显示弹出层
@@ -209,37 +220,29 @@ export default {
         pageNum: 1,
         pageSize: 10,
         userId: null,
-        amountOwed: null,
-        numberCall: null
+        userName: null,
+        tel: null,
+        pushContent: null,
+        pushTime: null,
+        pushType: null,
+        gridman: null,
       },
       // 表单参数
       form: {},
-      rules: {},
-      push: {
-        open: false,
-        title:"推送方式",
-        form: {
-          pushWay:[],
-        },
-        rules: {
-          pushWay: [{
-            required: false,
-            message: '请至少选择一个field',
-            trigger: 'change'
-          }],
-        },
-      },
+      // 表单校验
+      rules: {
+      }
     };
   },
   created() {
     this.getList();
   },
   methods: {
-    /** 查询欠费用户列表 */
+    /** 查询消息推送流水列表 */
     getList() {
       this.loading = true;
-      listArrearsUser(this.queryParams).then(response => {
-        this.arrearsUserList = response.rows;
+      listPostrecord(this.queryParams).then(response => {
+        this.postrecordList = response.rows;
         this.total = response.total;
         this.loading = false;
       });
@@ -247,7 +250,6 @@ export default {
     // 取消按钮
     cancel() {
       this.open = false;
-      this.push.open = false;
       this.reset();
     },
     // 表单重置
@@ -255,8 +257,18 @@ export default {
       this.form = {
         id: null,
         userId: null,
-        amountOwed: null,
-        numberCall: null
+        userName: null,
+        wxid: null,
+        tel: null,
+        pushContent: null,
+        pushTime: null,
+        pushType: [],
+        gridman: null,
+        createBy: null,
+        createTime: null,
+        updateBy: null,
+        updateTime: null,
+        remark: null
       };
       this.resetForm("form");
     },
@@ -273,7 +285,6 @@ export default {
     // 多选框选中数据
     handleSelectionChange(selection) {
       this.ids = selection.map(item => item.id)
-      this.userIds = selection.map(item => item.userId)
       this.single = selection.length!==1
       this.multiple = !selection.length
     },
@@ -281,30 +292,32 @@ export default {
     handleAdd() {
       this.reset();
       this.open = true;
-      this.title = "添加欠费用户";
+      this.title = "添加消息推送流水";
     },
     /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset();
       const id = row.id || this.ids
-      getArrearsUser(id).then(response => {
+      getPostrecord(id).then(response => {
         this.form = response.data;
+        this.form.pushType = this.form.pushType.split(",");
         this.open = true;
-        this.title = "修改欠费用户";
+        this.title = "修改消息推送流水";
       });
     },
     /** 提交按钮 */
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          this.form.pushType = this.form.pushType.join(",");
           if (this.form.id != null) {
-            updateArrearsUser(this.form).then(response => {
+            updatePostrecord(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");
               this.open = false;
               this.getList();
             });
           } else {
-            addArrearsUser(this.form).then(response => {
+            addPostrecord(this.form).then(response => {
               this.$modal.msgSuccess("新增成功");
               this.open = false;
               this.getList();
@@ -316,38 +329,18 @@ export default {
     /** 删除按钮操作 */
     handleDelete(row) {
       const ids = row.id || this.ids;
-      this.$modal.confirm('是否确认删除欠费用户编号为"' + ids + '"的数据项？').then(function() {
-        return delArrearsUser(ids);
+      this.$modal.confirm('是否确认删除消息推送流水编号为"' + ids + '"的数据项？').then(function() {
+        return delPostrecord(ids);
       }).then(() => {
         this.getList();
         this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
     },
-
-    /** 推送按钮操作 */
-    handlePush() {
-      this.reset();
-      this.push.open = true;
-      this.push.title = "选择推送方式";
-    },
-    /**推送提交按钮*/
-    pushSubmitForm() {
-      this.$refs["pushForm"].validate(valid => {
-        console.log(this.userIds)
-        console.log(this.push.form.pushWay)
-        if (valid) {
-          pushArrearsInfo(this.push.form.pushWay.toString(), this.userIds.toString()).then(response => {
-            this.$modal.msgSuccess("推送成功");
-            this.push.open = false;
-          });
-        }
-      });
-    },
     /** 导出按钮操作 */
     handleExport() {
-      this.download('system/arrearsUser/export', {
+      this.download('system/postrecord/export', {
         ...this.queryParams
-      }, `arrearsUser_${new Date().getTime()}.xlsx`)
+      }, `postrecord_${new Date().getTime()}.xlsx`)
     }
   }
 };
